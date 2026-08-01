@@ -1,0 +1,73 @@
+========================================================================
+                      QUICK REFERENCE GUIDE
+========================================================================
+
+YOUR SYSTEM LOCATION:
+   ~/Desktop/medical-rag-system/
+
+------------------------------------------------------------------------
+
+QUICK START (5 MINUTES):
+
+1. Open Terminal/Command Prompt
+2. cd ~/Desktop/medical-rag-system
+3. bash setup.sh (macOS/Linux) OR setup.bat (Windows)
+4. Edit .env - Add your OpenAI API key
+5. python3 backend/main.py
+6. Drag frontend/index.html into browser
+7. Ask a health question!
+
+DONE IN 5 MINUTES!
+
+------------------------------------------------------------------------
+
+WHAT YOU HAVE:
+
+- Complete backend (FastAPI)
+- Complete frontend (React)
+- All documentation
+- Setup scripts
+- Docker configs (optional)
+- Everything to deploy to cloud
+
+------------------------------------------------------------------------
+
+WHERE TO READ:
+
+Starting Out?      -> 00_READ_ME_FIRST.txt
+First Time Setup?  -> START_HERE.md -> docs/QUICKSTART.md
+Want to Deploy?     -> docs/DEPLOYMENT_GUIDE.md
+Full Info?          -> docs/README.md
+
+------------------------------------------------------------------------
+
+KEY FILES:
+
+EDIT THIS:        .env (add your API key)
+RUN THIS:          backend/main.py (backend)
+OPEN THIS:         frontend/index.html (frontend)
+READ THESE:        Documentation files (docs/)
+
+------------------------------------------------------------------------
+
+COMMANDS YOU'LL USE:
+
+macOS/Linux:
+  source backend/venv/bin/activate
+  python3 backend/main.py
+  python3 -m http.server 3000
+
+Windows:
+  backend\venv\Scripts\activate
+  python backend\main.py
+  python -m http.server 3000
+
+------------------------------------------------------------------------
+
+YOU'RE ALL SET!
+
+Everything is ready. Just run the setup script and you're good to go!
+
+Questions? Read the docs!
+
+========================================================================

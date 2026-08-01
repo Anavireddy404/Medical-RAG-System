@@ -1,0 +1,14 @@
+# Environment / secrets
+.env
+.env.local
+
+# Python
+backend/venv/
+__pycache__/
+*.pyc
+
+# Local database (Postgres is used in production; this is only a dev leftover)
+*.db
+
+# OS
+.DS_Store

@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medical Literature RAG System</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.6.2/axios.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh; padding: 20px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header { text-align: center; color: white; margin-bottom: 40px; }
+        .header h1 { font-size: 2.5em; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+        .header p { font-size: 1.1em; opacity: 0.9; }
+        .account-bar {
+            display: flex; align-items: center; justify-content: center; gap: 12px;
+            margin-top: 15px; font-size: 0.9em; opacity: 0.95;
+        }
+        .logout-button {
+            background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.4);
+            border-radius: 6px; padding: 5px 14px; font-size: 0.9em; cursor: pointer;
+        }
+        .logout-button:hover { background: rgba(255,255,255,0.25); }
+        .auth-container { max-width: 480px; }
+        .auth-card { margin-top: 10px; }
+        .auth-switch { text-align: center; margin-top: 15px; font-size: 0.9em; color: #666; }
+        .auth-switch a { color: #667eea; font-weight: 600; text-decoration: none; }
+        .auth-switch a:hover { text-decoration: underline; }
+        .main-content { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+        @media (max-width: 768px) { .main-content { grid-template-columns: 1fr; } .header h1 { font-size: 1.8em; } }
+        .card { background: white; border-radius: 12px; padding: 30px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+        .card h2 { color: #667eea; margin-bottom: 20px; font-size: 1.5em; border-bottom: 2px solid #667eea; padding-bottom: 10px; }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: 600; color: #333; }
+        .form-group input, .form-group textarea, .form-group select {
+            width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 1em; font-family: inherit;
+        }
+        .form-group input:focus, .form-group textarea:focus, .form-group select:focus { outline: none; border-color: #667eea; }
+        .form-group textarea { resize: vertical; min-height: 100px; }
+        .tag-input { display: flex; flex-wrap: wrap; gap: 8px; padding: 8px; border: 2px solid #e0e0e0; border-radius: 8px; min-height: 50px; align-items: center; }
+        .tag { background: #667eea; color: white; padding: 6px 12px; border-radius: 20px; display: flex; align-items: center; gap: 8px; font-size: 0.9em; }
+        .tag button { background: none; border: none; color: white; cursor: pointer; font-size: 1.2em; }
+        .tag-input input { flex: 1; border: none; outline: none; min-width: 100px; padding: 6px; }
+        .tag-add-btn {
+            background: #667eea; color: white; border: none; border-radius: 6px;
+            padding: 6px 12px; font-size: 0.85em; cursor: pointer; white-space: nowrap;
+        }
+        .tag-add-btn:hover { background: #5a67d8; }
+        .field-hint { font-size: 0.8em; color: #888; margin-top: 4px; }
+        .query-tools { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+        .tool-button {
+            background: #f0f4ff; color: #667eea; border: 1px solid #d0d8ff; border-radius: 6px;
+            padding: 8px 14px; font-size: 0.85em; font-weight: 600; cursor: pointer;
+        }
+        .tool-button:hover:not(:disabled) { background: #e4ebff; }
+        .tool-button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .tool-button-active { background: #fdecea; color: #a71d2a; border-color: #dc3545; animation: pulse 1.2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+        .speak-button {
+            background: none; border: 1px solid #667eea; color: #667eea; border-radius: 6px;
+            padding: 4px 10px; font-size: 0.8em; font-weight: 600; cursor: pointer; margin-left: 10px;
+        }
+        .speak-button:hover { background: #f0f4ff; }
+        .tag-field { position: relative; }
+        .suggestions-dropdown {
+            position: absolute; top: 100%; left: 0; right: 0; margin-top: 4px;
+            background: white; border: 1px solid #e0e0e0; border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15); max-height: 200px; overflow-y: auto; z-index: 10;
+        }
+        .suggestion-item { padding: 10px 12px; cursor: pointer; font-size: 0.9em; color: #333; }
+        .suggestion-item:hover { background: #f0f4ff; }
+        .button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;
+            padding: 12px 24px; border-radius: 8px; font-size: 1em; font-weight: 600; cursor: pointer;
+        }
+        .button:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(102,126,234,0.4); }
+        .button:disabled { opacity: 0.6; cursor: not-allowed; }
+        .delete-profile-btn { background: white; color: #dc3545; border: 2px solid #dc3545; margin-left: 10px; }
+        .delete-profile-btn:hover { background: #dc3545; color: white; box-shadow: 0 10px 20px rgba(220,53,69,0.3); }
+        .response-box { background: #f8f9fa; border-left: 4px solid #667eea; padding: 20px; border-radius: 8px; margin-top: 20px; }
+        .emergency-box { background: #fdecea; border: 2px solid #dc3545; padding: 20px; border-radius: 8px; margin-top: 20px; }
+        .emergency-title { font-weight: 800; color: #a71d2a; font-size: 1.2em; margin-bottom: 12px; }
+        .emergency-box .response-content { color: #5c1a1a; }
+        .emergency-box .response-content h2 { color: #a71d2a; }
+        .response-title { font-weight: 600; color: #333; margin-bottom: 12px; }
+        .response-content { color: #555; line-height: 1.6; font-size: 0.95em; }
+        .response-content h1, .response-content h2, .response-content h3, .response-content h4 {
+            color: #667eea; margin: 16px 0 8px; font-weight: 700;
+        }
+        .response-content h1:first-child, .response-content h2:first-child,
+        .response-content h3:first-child, .response-content h4:first-child { margin-top: 0; }
+        .response-content h1 { font-size: 1.25em; }
+        .response-content h2 { font-size: 1.15em; }
+        .response-content h3 { font-size: 1.05em; }
+        .response-content h4 { font-size: 1em; }
+        .response-content p { margin-bottom: 10px; }
+        .response-content ul, .response-content ol { margin: 4px 0 12px 22px; }
+        .response-content li { margin-bottom: 6px; }
+        .response-content strong { color: #333; }
+        .response-content a { color: #667eea; text-decoration: underline; }
+        .response-content a:hover { color: #5a67d8; }
+        .paper-item { background: white; border: 1px solid #e0e0e0; border-radius: 8px; padding: 15px; margin-top: 10px; }
+        .paper-title { font-weight: 600; color: #667eea; margin-bottom: 8px; }
+        .paper-meta { font-size: 0.85em; color: #666; margin-bottom: 8px; }
+        .paper-abstract { font-size: 0.9em; color: #555; line-height: 1.5; }
+        .spinner { width: 20px; height: 20px; border: 3px solid #e0e0e0; border-top-color: #667eea; border-radius: 50%; animation: spin 0.8s linear infinite; display: inline-block; }
+        .stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-top: 20px; }
+        .stat-item { background: #f0f4ff; padding: 15px; border-radius: 8px; text-align: center; }
+        .stat-value { font-size: 1.5em; font-weight: 700; color: #667eea; }
+        .stat-label { font-size: 0.85em; color: #666; margin-top: 5px; }
+        .alert { padding: 15px; border-radius: 8px; margin-bottom: 15px; }
+        .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .alert-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .two-column-form { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        @media (max-width: 600px) { .two-column-form { grid-template-columns: 1fr; } }
+        .profile-display { background: #f0f4ff; padding: 15px; border-radius: 8px; margin-top: 15px; }
+        .profile-display-clickable { cursor: pointer; transition: background 0.15s; }
+        .profile-display-clickable:hover { background: #e4ebff; }
+        .safety-check-box { margin-top: 15px; padding: 15px; border-radius: 8px; background: #f8f9fa; border: 1px solid #e0e0e0; }
+        .safety-check-title { font-weight: 700; color: #333; margin-bottom: 10px; }
+        .safety-ok { color: #155724; background: #d4edda; padding: 10px 12px; border-radius: 6px; font-size: 0.9em; }
+        .safety-alert { background: #fff3cd; border-left: 4px solid #ffc107; padding: 10px 12px; border-radius: 6px; margin-bottom: 8px; font-size: 0.9em; color: #664d03; }
+        .safety-excerpt { margin-top: 6px; font-size: 0.85em; color: #7a5c00; font-style: italic; }
+        .metrics-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px; }
+        .metric-item { background: #f0f4ff; border-radius: 8px; padding: 12px; text-align: center; }
+        .metric-value { font-size: 1.4em; font-weight: 700; color: #667eea; }
+        .metric-label { font-size: 0.8em; color: #666; margin-top: 4px; }
+        .care-locator-card { margin-top: 30px; }
+        .care-locator-form { display: flex; gap: 10px; margin-bottom: 15px; }
+        .care-locator-form input {
+            flex: 1; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 1em; font-family: inherit;
+        }
+        .care-locator-form input:focus { outline: none; border-color: #667eea; }
+        .care-results { margin-bottom: 20px; }
+        .clinic-item { background: #f0f4ff; border-radius: 8px; padding: 12px 15px; margin-bottom: 10px; }
+        .clinic-name { font-weight: 700; color: #333; margin-bottom: 4px; }
+        .clinic-detail { font-size: 0.9em; color: #555; }
+        .hotline-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+        .hotline-item { background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 8px; padding: 12px 15px; }
+        .hotline-name { font-weight: 700; color: #667eea; margin-bottom: 4px; font-size: 0.95em; }
+        .hotline-contact { font-weight: 600; color: #333; margin-bottom: 4px; }
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center;
+            z-index: 100; padding: 20px;
+        }
+        .modal-content {
+            background: white; border-radius: 12px; padding: 30px; max-width: 500px; width: 100%;
+            max-height: 80vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .modal-content p { margin-bottom: 10px; color: #333; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .modal-header h3 { color: #667eea; }
+        .modal-close { background: none; border: none; font-size: 1.5em; cursor: pointer; color: #888; line-height: 1; }
+        .modal-close:hover { color: #333; }
+        .insight-box { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; border-radius: 8px; margin-top: 15px; }
+        .insight-title { font-weight: 600; color: #856404; margin-bottom: 8px; }
+        .checkbox-group { display: flex; align-items: center; gap: 8px; margin-bottom: 15px; }
+        .doi-link { color: #667eea; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="text/babel">
+        const API_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+            ? 'http://localhost:8000/api'
+            : 'https://medical-rag-backend.onrender.com/api';
+
+        const LANGUAGE_SPEECH_CODES = {
+            'English': 'en-US',
+            'Spanish': 'es-ES',
+            'Chinese (Simplified)': 'zh-CN',
+            'Vietnamese': 'vi-VN',
+            'Tagalog': 'fil-PH',
+            'Korean': 'ko-KR',
+            'Arabic': 'ar-SA',
+            'Russian': 'ru-RU',
+            'French': 'fr-FR',
+            'Haitian Creole': 'ht-HT',
+            'Portuguese': 'pt-PT',
+            'Hindi': 'hi-IN'
+        };
+
+        const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const speechSynthesisSupported = 'speechSynthesis' in window;
+
+        marked.use({
+            renderer: {
+                link(href, title, text) {
+                    return `<a href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+                }
+            }
+        });
+
+        function renderFormattedAnswer(text) {
+            const withPmidLinks = text.replace(
+                /PMID:\s*(\d+)/g,
+                (match, pmid) => `[PMID: ${pmid}](https://pubmed.ncbi.nlm.nih.gov/${pmid}/)`
+            );
+            const html = marked.parse(withPmidLinks);
+            return { __html: DOMPurify.sanitize(html, { ADD_ATTR: ['target'] }) };
+        }
+
+        function useAutocomplete(inputValue, endpoint) {
+            const [suggestions, setSuggestions] = React.useState([]);
+            React.useEffect(() => {
+                const term = inputValue.trim();
+                if (term.length < 2) { setSuggestions([]); return; }
+                const timer = setTimeout(async () => {
+                    try {
+                        const res = await axios.get(`${API_URL}/autocomplete/${endpoint}`, { params: { q: term } });
+                        setSuggestions(res.data.suggestions || []);
+                    } catch (e) { setSuggestions([]); }
+                }, 300);
+                return () => clearTimeout(timer);
+            }, [inputValue, endpoint]);
+            return suggestions;
+        }
+
+        function TagField({ label, placeholder, tags, onRemove, inputValue, onInputChange, onKeyPress,
+                             onAdd, suggestions, showSuggestions, setShowSuggestions, onSelectSuggestion }) {
+            return (
+                <div className="form-group tag-field">
+                    <label>{label}</label>
+                    <div className="tag-input">
+                        {tags.map((t, idx) => (
+                            <div className="tag" key={idx}>{t}
+                                <button type="button" onClick={() => onRemove(idx)}>×</button>
+                            </div>
+                        ))}
+                        <input type="text" placeholder={placeholder} value={inputValue}
+                            onChange={onInputChange} onKeyPress={onKeyPress}
+                            onFocus={() => setShowSuggestions(true)}
+                            onBlur={() => setTimeout(() => setShowSuggestions(false), 150)} />
+                        <button type="button" className="tag-add-btn" onClick={onAdd}>+ Add</button>
+                    </div>
+                    {showSuggestions && suggestions.length > 0 && (
+                        <div className="suggestions-dropdown">
+                            {suggestions.map((s, idx) => (
+                                <div key={idx} className="suggestion-item"
+                                    onMouseDown={(e) => { e.preventDefault(); onSelectSuggestion(s); }}>{s}</div>
+                            ))}
+                        </div>
+                    )}
+                    <div className="field-hint">Type to search, press Enter, or click "+ Add" to save each item</div>
+                </div>
+            );
+        }
+
+        function AuthScreen({ onAuthenticated }) {
+            const [mode, setMode] = React.useState('login');
+            const [email, setEmail] = React.useState('');
+            const [password, setPassword] = React.useState('');
+            const [loading, setLoading] = React.useState(false);
+            const [error, setError] = React.useState(null);
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                setError(null);
+                setLoading(true);
+                try {
+                    const endpoint = mode === 'login' ? 'login' : 'signup';
+                    const response = await axios.post(`${API_URL}/auth/${endpoint}`, { email, password });
+                    onAuthenticated(response.data);
+                } catch (err) {
+                    setError(err.response?.data?.detail || err.message);
+                } finally { setLoading(false); }
+            };
+
+            return (
+                <div className="container auth-container">
+                    <div className="header">
+                        <h1>🏥 Medical Literature RAG System</h1>
+                        <p>Evidence-based medical information with personalized insights</p>
+                    </div>
+                    <div className="card auth-card">
+                        <h2>{mode === 'login' ? '🔐 Sign In' : '✍️ Create Account'}</h2>
+                        {error && <div className="alert alert-error">{error}</div>}
+                        <form onSubmit={handleSubmit}>
+                            <div className="form-group">
+                                <label>Email</label>
+                                <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
+                            </div>
+                            <div className="form-group">
+                                <label>Password</label>
+                                <input type="password" required minLength="8" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 8 characters" />
+                            </div>
+                            <button type="submit" className="button" disabled={loading} style={{width: '100%'}}>
+                                {loading ? <><span className="spinner"></span> {mode === 'login' ? 'Signing in...' : 'Creating account...'}</> : (mode === 'login' ? 'Sign In' : 'Create Account')}
+                            </button>
+                        </form>
+                        <p className="auth-switch">
+                            {mode === 'login' ? "Don't have an account? " : "Already have an account? "}
+                            <a href="#" onClick={(e) => { e.preventDefault(); setMode(mode === 'login' ? 'signup' : 'login'); setError(null); }}>
+                                {mode === 'login' ? 'Create one' : 'Sign in'}
+                            </a>
+                        </p>
+                    </div>
+                </div>
+            );
+        }
+
+        function MedicalRAGApp({ onLogout, userEmail }) {
+            const [hasProfile, setHasProfile] = React.useState(false);
+            const [loading, setLoading] = React.useState(false);
+            const [message, setMessage] = React.useState(null);
+            const [queryResponse, setQueryResponse] = React.useState(null);
+            const [stats, setStats] = React.useState(null);
+            const [careZip, setCareZip] = React.useState('');
+            const [careLocatorResults, setCareLocatorResults] = React.useState(null);
+            const [careLocatorLoading, setCareLocatorLoading] = React.useState(false);
+
+            const blankProfileForm = () => ({
+                user_id: `user_${Date.now()}`, first_name: '', last_name: '', age: 45, gender: 'Not Specified',
+                height_cm: 170, weight_kg: 70,
+                medical_conditions: [], current_medications: [], allergies: [],
+                lifestyle_factors: 'Moderately Active', family_history: []
+            });
+            const [profileForm, setProfileForm] = React.useState(blankProfileForm());
+            const [viewedProfile, setViewedProfile] = React.useState(null);
+            const [showProfileModal, setShowProfileModal] = React.useState(false);
+            const [safetyCheck, setSafetyCheck] = React.useState(null);
+            const [safetyCheckLoading, setSafetyCheckLoading] = React.useState(false);
+            const [healthMetrics, setHealthMetrics] = React.useState(null);
+            const [healthMetricsLoading, setHealthMetricsLoading] = React.useState(false);
+            const [isListening, setIsListening] = React.useState(false);
+            const [interpreting, setInterpreting] = React.useState(false);
+            const [isSpeaking, setIsSpeaking] = React.useState(false);
+            const [queryForm, setQueryForm] = React.useState({ query: '', include_personalization: true, language: 'English' });
+            const [conditionInput, setConditionInput] = React.useState('');
+            const [medicationInput, setMedicationInput] = React.useState('');
+            const [allergyInput, setAllergyInput] = React.useState('');
+            const [familyHistoryInput, setFamilyHistoryInput] = React.useState('');
+            const [showConditionSuggestions, setShowConditionSuggestions] = React.useState(false);
+            const [showMedicationSuggestions, setShowMedicationSuggestions] = React.useState(false);
+            const [showAllergySuggestions, setShowAllergySuggestions] = React.useState(false);
+            const [showFamilyHistorySuggestions, setShowFamilyHistorySuggestions] = React.useState(false);
+
+            const conditionSuggestions = useAutocomplete(conditionInput, 'conditions');
+            const medicationSuggestions = useAutocomplete(medicationInput, 'medications');
+            const allergySuggestions = useAutocomplete(allergyInput, 'allergies');
+            const familyHistorySuggestions = useAutocomplete(familyHistoryInput, 'conditions');
+
+            React.useEffect(() => { fetchStats(); fetchMyProfile(); }, []);
+
+            const fetchStats = async () => {
+                try {
+                    const response = await axios.get(`${API_URL}/stats`);
+                    setStats(response.data);
+                } catch (error) { console.log('Stats unavailable'); }
+            };
+
+            const fetchMyProfile = async () => {
+                try {
+                    const response = await axios.get(`${API_URL}/my-profile`);
+                    setProfileForm(response.data);
+                    setHasProfile(true);
+                    runSafetyCheck();
+                    runHealthMetrics();
+                } catch (error) {
+                    setHasProfile(false);
+                }
+            };
+
+            const runSafetyCheck = async () => {
+                setSafetyCheckLoading(true);
+                try {
+                    const response = await axios.get(`${API_URL}/my-profile/safety-check`);
+                    setSafetyCheck(response.data);
+                } catch (error) {
+                    console.log('Safety check unavailable');
+                    setSafetyCheck(null);
+                } finally { setSafetyCheckLoading(false); }
+            };
+
+            const runHealthMetrics = async () => {
+                setHealthMetricsLoading(true);
+                try {
+                    const response = await axios.get(`${API_URL}/my-profile/metrics`);
+                    setHealthMetrics(response.data);
+                } catch (error) {
+                    console.log('Health metrics unavailable');
+                    setHealthMetrics(null);
+                } finally { setHealthMetricsLoading(false); }
+            };
+
+            const showMessage = (text, type = 'info') => {
+                setMessage({ text, type });
+                setTimeout(() => setMessage(null), 5000);
+            };
+
+            const addTag = (value, setter, array) => {
+                if (value.trim()) { setter([...array, value.trim()]); return ''; }
+                return value;
+            };
+            const removeTag = (index, array, setter) => setter(array.filter((_, i) => i !== index));
+
+            const commitTag = (input, setInput, field) => {
+                if (input.trim()) {
+                    setProfileForm(prev => ({ ...prev, [field]: [...prev[field], input.trim()] }));
+                    setInput('');
+                }
+            };
+
+            const stripFormAnnotation = (name) => name.replace(/\s*\([^)]*\)\s*$/, '').trim();
+
+            const selectSuggestion = (value, setInput, field, setShowSuggestions) => {
+                setProfileForm(prev => ({ ...prev, [field]: [...prev[field], value] }));
+                setInput('');
+                setShowSuggestions(false);
+            };
+
+            const handleSaveProfile = async (e) => {
+                e.preventDefault();
+                setLoading(true);
+                try {
+                    const finalConditions = conditionInput.trim()
+                        ? [...profileForm.medical_conditions, conditionInput.trim()]
+                        : profileForm.medical_conditions;
+                    const finalMedications = medicationInput.trim()
+                        ? [...profileForm.current_medications, medicationInput.trim()]
+                        : profileForm.current_medications;
+                    const finalAllergies = allergyInput.trim()
+                        ? [...profileForm.allergies, allergyInput.trim()]
+                        : profileForm.allergies;
+                    const finalFamilyHistory = familyHistoryInput.trim()
+                        ? [...profileForm.family_history, familyHistoryInput.trim()]
+                        : profileForm.family_history;
+
+                    const payload = {
+                        ...profileForm,
+                        medical_conditions: finalConditions,
+                        current_medications: finalMedications,
+                        allergies: finalAllergies,
+                        family_history: finalFamilyHistory
+                    };
+
+                    setProfileForm(payload);
+                    setConditionInput('');
+                    setMedicationInput('');
+                    setAllergyInput('');
+                    setFamilyHistoryInput('');
+
+                    await axios.put(`${API_URL}/my-profile`, payload);
+                    setHasProfile(true);
+                    showMessage('Profile saved!', 'success');
+
+                    fetchStats();
+                    runSafetyCheck();
+                    runHealthMetrics();
+                } catch (error) {
+                    showMessage(`Error: ${error.message}`, 'error');
+                } finally { setLoading(false); }
+            };
+
+            const handleDeleteProfile = async () => {
+                if (!hasProfile) return;
+                const name = (profileForm.first_name || profileForm.last_name)
+                    ? `${profileForm.first_name} ${profileForm.last_name}`.trim() : 'this profile';
+                if (!window.confirm(`Delete ${name}? This cannot be undone.`)) return;
+
+                setLoading(true);
+                try {
+                    await axios.delete(`${API_URL}/my-profile`);
+                    setHasProfile(false);
+                    setProfileForm(blankProfileForm());
+                    setSafetyCheck(null);
+                    setHealthMetrics(null);
+                    setQueryForm({ query: '', include_personalization: true, language: 'English' });
+                    setQueryResponse(null);
+                    showMessage('Profile deleted', 'success');
+                    fetchStats();
+                } catch (error) {
+                    showMessage(`Error deleting profile: ${error.message}`, 'error');
+                } finally { setLoading(false); }
+            };
+
+            const handleViewProfile = async () => {
+                if (!hasProfile) return;
+                try {
+                    const response = await axios.get(`${API_URL}/my-profile`);
+                    setViewedProfile(response.data);
+                    setShowProfileModal(true);
+                } catch (error) {
+                    showMessage(`Error loading profile: ${error.message}`, 'error');
+                }
+            };
+
+            const handleQuery = async (e) => {
+                e.preventDefault();
+                if (!queryForm.query.trim()) { showMessage('Please enter a query', 'error'); return; }
+                setLoading(true);
+                try {
+                    const response = await axios.post(`${API_URL}/query`, {
+                        query: queryForm.query,
+                        include_personalization: Boolean(queryForm.include_personalization && hasProfile),
+                        language: queryForm.language
+                    });
+                    setQueryResponse(response.data);
+                    showMessage('Query processed successfully!', 'success');
+                } catch (error) {
+                    showMessage(`Error: ${error.message}`, 'error');
+                } finally { setLoading(false); }
+            };
+
+            const handleVoiceInput = () => {
+                if (!SpeechRecognitionAPI) {
+                    showMessage('Voice input is not supported in this browser. Try Chrome or Edge.', 'error');
+                    return;
+                }
+                const recognition = new SpeechRecognitionAPI();
+                recognition.lang = LANGUAGE_SPEECH_CODES[queryForm.language] || 'en-US';
+                recognition.interimResults = false;
+                recognition.maxAlternatives = 1;
+                recognition.onstart = () => setIsListening(true);
+                recognition.onresult = (event) => {
+                    const transcript = event.results[0][0].transcript;
+                    setQueryForm(prev => ({ ...prev, query: (prev.query.trim() ? prev.query.trim() + ' ' : '') + transcript }));
+                };
+                recognition.onerror = () => {
+                    setIsListening(false);
+                    showMessage('Could not capture voice input — please try again.', 'error');
+                };
+                recognition.onend = () => setIsListening(false);
+                recognition.start();
+            };
+
+            const handleInterpretQuery = async () => {
+                if (!queryForm.query.trim()) return;
+                setInterpreting(true);
+                try {
+                    const response = await axios.post(`${API_URL}/interpret-query`, {
+                        raw_text: queryForm.query,
+                        language: queryForm.language
+                    });
+                    setQueryForm(prev => ({ ...prev, query: response.data.interpreted_question }));
+                    showMessage('Question clarified — review it, then search', 'success');
+                } catch (error) {
+                    showMessage(`Error interpreting question: ${error.message}`, 'error');
+                } finally { setInterpreting(false); }
+            };
+
+            const handleSpeakText = (text) => {
+                if (!speechSynthesisSupported) {
+                    showMessage('Text-to-speech is not supported in this browser.', 'error');
+                    return;
+                }
+                window.speechSynthesis.cancel();
+                if (isSpeaking) { setIsSpeaking(false); return; }
+                const plainText = text.replace(/[#*_`>]/g, '').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+                const utterance = new SpeechSynthesisUtterance(plainText);
+                utterance.lang = LANGUAGE_SPEECH_CODES[queryForm.language] || 'en-US';
+                utterance.onend = () => setIsSpeaking(false);
+                utterance.onerror = () => setIsSpeaking(false);
+                setIsSpeaking(true);
+                window.speechSynthesis.speak(utterance);
+            };
+
+            const handleFindCare = async (e) => {
+                e.preventDefault();
+                if (!careZip.trim()) return;
+                setCareLocatorLoading(true);
+                try {
+                    const response = await axios.get(`${API_URL}/care-locator`, { params: { zip_code: careZip.trim() } });
+                    setCareLocatorResults(response.data);
+                } catch (error) {
+                    showMessage(`Error finding care: ${error.message}`, 'error');
+                } finally { setCareLocatorLoading(false); }
+            };
+
+            const handleKeyPress = (e, input, setter, field) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const result = addTag(input, (tags) => setProfileForm({ ...profileForm, [field]: tags }), profileForm[field]);
+                    setter(result);
+                }
+            };
+
+            return (
+                <div className="container">
+                    <div className="header">
+                        <h1>🏥 Medical Literature RAG System</h1>
+                        <p>Evidence-based medical information with personalized insights</p>
+                        <div className="account-bar">
+                            <span>{userEmail}</span>
+                            <button type="button" className="logout-button" onClick={onLogout}>Log Out</button>
+                        </div>
+                    </div>
+                    {message && <div className={`alert alert-${message.type}`}>{message.text}</div>}
+                    <div className="main-content">
+                        <div className="card">
+                            <h2>👤 Health Profile</h2>
+                            <form onSubmit={handleSaveProfile}>
+                                <div className="two-column-form">
+                                    <div className="form-group">
+                                        <label>First Name</label>
+                                        <input type="text" placeholder="e.g., Jane" value={profileForm.first_name}
+                                            onChange={(e) => setProfileForm({ ...profileForm, first_name: e.target.value })} />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Last Name</label>
+                                        <input type="text" placeholder="e.g., Doe" value={profileForm.last_name}
+                                            onChange={(e) => setProfileForm({ ...profileForm, last_name: e.target.value })} />
+                                    </div>
+                                </div>
+                                <div className="two-column-form">
+                                    <div className="form-group">
+                                        <label>Age</label>
+                                        <input type="number" min="1" max="120" value={profileForm.age}
+                                            onChange={(e) => setProfileForm({ ...profileForm, age: parseInt(e.target.value) || 0 })} />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Gender</label>
+                                        <select value={profileForm.gender} onChange={(e) => setProfileForm({ ...profileForm, gender: e.target.value })}>
+                                            <option>Not Specified</option><option>Male</option><option>Female</option><option>Other</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div className="two-column-form">
+                                    <div className="form-group">
+                                        <label>Height (cm)</label>
+                                        <input type="number" min="30" max="272" value={profileForm.height_cm}
+                                            onChange={(e) => setProfileForm({ ...profileForm, height_cm: parseFloat(e.target.value) || 0 })} />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Weight (kg)</label>
+                                        <input type="number" min="1" max="650" value={profileForm.weight_kg}
+                                            onChange={(e) => setProfileForm({ ...profileForm, weight_kg: parseFloat(e.target.value) || 0 })} />
+                                    </div>
+                                </div>
+                                <div className="form-group">
+                                    <label>Lifestyle Factors</label>
+                                    <select value={profileForm.lifestyle_factors} onChange={(e) => setProfileForm({ ...profileForm, lifestyle_factors: e.target.value })}>
+                                        <option>Sedentary</option><option>Moderately Active</option><option>Very Active</option>
+                                    </select>
+                                </div>
+                                <TagField
+                                    label="Medical Conditions" placeholder="e.g., Hypertension"
+                                    tags={profileForm.medical_conditions}
+                                    onRemove={(idx) => removeTag(idx, profileForm.medical_conditions, (t) => setProfileForm({ ...profileForm, medical_conditions: t }))}
+                                    inputValue={conditionInput}
+                                    onInputChange={(e) => setConditionInput(e.target.value)}
+                                    onKeyPress={(e) => handleKeyPress(e, conditionInput, setConditionInput, 'medical_conditions')}
+                                    onAdd={() => commitTag(conditionInput, setConditionInput, 'medical_conditions')}
+                                    suggestions={conditionSuggestions}
+                                    showSuggestions={showConditionSuggestions}
+                                    setShowSuggestions={setShowConditionSuggestions}
+                                    onSelectSuggestion={(s) => selectSuggestion(s, setConditionInput, 'medical_conditions', setShowConditionSuggestions)}
+                                />
+                                <TagField
+                                    label="Current Medications" placeholder="e.g., Lisinopril"
+                                    tags={profileForm.current_medications}
+                                    onRemove={(idx) => removeTag(idx, profileForm.current_medications, (t) => setProfileForm({ ...profileForm, current_medications: t }))}
+                                    inputValue={medicationInput}
+                                    onInputChange={(e) => setMedicationInput(e.target.value)}
+                                    onKeyPress={(e) => handleKeyPress(e, medicationInput, setMedicationInput, 'current_medications')}
+                                    onAdd={() => commitTag(medicationInput, setMedicationInput, 'current_medications')}
+                                    suggestions={medicationSuggestions}
+                                    showSuggestions={showMedicationSuggestions}
+                                    setShowSuggestions={setShowMedicationSuggestions}
+                                    onSelectSuggestion={(s) => selectSuggestion(stripFormAnnotation(s), setMedicationInput, 'current_medications', setShowMedicationSuggestions)}
+                                />
+                                <TagField
+                                    label="Allergies" placeholder="e.g., Penicillin"
+                                    tags={profileForm.allergies}
+                                    onRemove={(idx) => removeTag(idx, profileForm.allergies, (t) => setProfileForm({ ...profileForm, allergies: t }))}
+                                    inputValue={allergyInput}
+                                    onInputChange={(e) => setAllergyInput(e.target.value)}
+                                    onKeyPress={(e) => handleKeyPress(e, allergyInput, setAllergyInput, 'allergies')}
+                                    onAdd={() => commitTag(allergyInput, setAllergyInput, 'allergies')}
+                                    suggestions={allergySuggestions}
+                                    showSuggestions={showAllergySuggestions}
+                                    setShowSuggestions={setShowAllergySuggestions}
+                                    onSelectSuggestion={(s) => selectSuggestion(stripFormAnnotation(s), setAllergyInput, 'allergies', setShowAllergySuggestions)}
+                                />
+                                <TagField
+                                    label="Family History" placeholder="e.g., Diabetes"
+                                    tags={profileForm.family_history}
+                                    onRemove={(idx) => removeTag(idx, profileForm.family_history, (t) => setProfileForm({ ...profileForm, family_history: t }))}
+                                    inputValue={familyHistoryInput}
+                                    onInputChange={(e) => setFamilyHistoryInput(e.target.value)}
+                                    onKeyPress={(e) => handleKeyPress(e, familyHistoryInput, setFamilyHistoryInput, 'family_history')}
+                                    onAdd={() => commitTag(familyHistoryInput, setFamilyHistoryInput, 'family_history')}
+                                    suggestions={familyHistorySuggestions}
+                                    showSuggestions={showFamilyHistorySuggestions}
+                                    setShowSuggestions={setShowFamilyHistorySuggestions}
+                                    onSelectSuggestion={(s) => selectSuggestion(s, setFamilyHistoryInput, 'family_history', setShowFamilyHistorySuggestions)}
+                                />
+                                <button type="submit" className="button" disabled={loading}>
+                                    {loading
+                                        ? <><span className="spinner"></span> Saving...</>
+                                        : (hasProfile ? '✓ Update Profile' : '✓ Create Profile')}
+                                </button>
+                                {hasProfile && (
+                                    <button type="button" className="button delete-profile-btn" disabled={loading}
+                                        onClick={handleDeleteProfile}>
+                                        🗑 Delete Profile
+                                    </button>
+                                )}
+                            </form>
+                            {hasProfile && (
+                                <div className="profile-display profile-display-clickable" onClick={handleViewProfile}>
+                                    <p><strong>Name:</strong> {(profileForm.first_name || profileForm.last_name) ? `${profileForm.first_name} ${profileForm.last_name}`.trim() : 'None'}</p>
+                                    <p><strong>Age:</strong> {profileForm.age} years</p>
+                                    <p><strong>Height/Weight:</strong> {profileForm.height_cm} cm / {profileForm.weight_kg} kg</p>
+                                    <p><strong>Conditions:</strong> {profileForm.medical_conditions.length ? profileForm.medical_conditions.join(', ') : 'None'}</p>
+                                    <p><strong>Medications:</strong> {profileForm.current_medications.length ? profileForm.current_medications.join(', ') : 'None'}</p>
+                                    <p><strong>Allergies:</strong> {profileForm.allergies.length ? profileForm.allergies.join(', ') : 'None'}</p>
+                                    <p><strong>Family History:</strong> {profileForm.family_history.length ? profileForm.family_history.join(', ') : 'None'}</p>
+                                    <div className="field-hint">Click to view full saved profile</div>
+                                </div>
+                            )}
+                            {hasProfile && (
+                                <div className="safety-check-box">
+                                    <div className="safety-check-title">🛡️ Safety Check</div>
+                                    {safetyCheckLoading && <p className="field-hint">Checking allergy conflicts and drug interactions…</p>}
+                                    {!safetyCheckLoading && safetyCheck && (
+                                        <React.Fragment>
+                                            {(safetyCheck.allergy_conflicts.length === 0 && safetyCheck.drug_interactions.length === 0) ? (
+                                                <p className="safety-ok">✓ No known allergy conflicts or drug interactions found for this profile.</p>
+                                            ) : (
+                                                <React.Fragment>
+                                                    {safetyCheck.allergy_conflicts.map((c, idx) => (
+                                                        <div className="safety-alert" key={`ac-${idx}`}>
+                                                            <strong>Allergy Conflict:</strong> {c.reason}
+                                                        </div>
+                                                    ))}
+                                                    {safetyCheck.drug_interactions.map((d, idx) => (
+                                                        <div className="safety-alert" key={`di-${idx}`}>
+                                                            <strong>Possible Interaction:</strong> {d.medication} + {d.interacts_with} ({d.matched_via})
+                                                            <div className="safety-excerpt">{d.excerpt}</div>
+                                                        </div>
+                                                    ))}
+                                                </React.Fragment>
+                                            )}
+                                            <div className="field-hint">{safetyCheck.disclaimer}</div>
+                                        </React.Fragment>
+                                    )}
+                                </div>
+                            )}
+                            {hasProfile && (
+                                <div className="safety-check-box">
+                                    <div className="safety-check-title">📊 Health Metrics</div>
+                                    {healthMetricsLoading && <p className="field-hint">Calculating BMI and TDEE…</p>}
+                                    {!healthMetricsLoading && healthMetrics && (
+                                        <React.Fragment>
+                                            <div className="metrics-grid">
+                                                <div className="metric-item">
+                                                    <div className="metric-value">{healthMetrics.bmi.value}</div>
+                                                    <div className="metric-label">BMI — {healthMetrics.bmi.category}</div>
+                                                </div>
+                                                <div className="metric-item">
+                                                    <div className="metric-value">{healthMetrics.tdee.bmr}</div>
+                                                    <div className="metric-label">BMR (cal/day)</div>
+                                                </div>
+                                                <div className="metric-item">
+                                                    <div className="metric-value">{healthMetrics.tdee.tdee}</div>
+                                                    <div className="metric-label">TDEE (cal/day)</div>
+                                                </div>
+                                            </div>
+                                            <div className="field-hint">{healthMetrics.disclaimer}</div>
+                                        </React.Fragment>
+                                    )}
+                                    {!healthMetricsLoading && !healthMetrics && (
+                                        <p className="field-hint">Add height and weight to see BMI and estimated daily calorie needs.</p>
+                                    )}
+                                </div>
+                            )}
+                            {showProfileModal && viewedProfile && (
+                                <div className="modal-overlay" onClick={() => setShowProfileModal(false)}>
+                                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                                        <div className="modal-header">
+                                            <h3>Saved Health Profile</h3>
+                                            <button type="button" className="modal-close" onClick={() => setShowProfileModal(false)}>×</button>
+                                        </div>
+                                        <p><strong>Name:</strong> {(viewedProfile.first_name || viewedProfile.last_name) ? `${viewedProfile.first_name} ${viewedProfile.last_name}`.trim() : 'None'}</p>
+                                        <p><strong>Age:</strong> {viewedProfile.age} years</p>
+                                        <p><strong>Height/Weight:</strong> {viewedProfile.height_cm} cm / {viewedProfile.weight_kg} kg</p>
+                                        <p><strong>Gender:</strong> {viewedProfile.gender}</p>
+                                        <p><strong>Lifestyle:</strong> {viewedProfile.lifestyle_factors}</p>
+                                        <p><strong>Conditions:</strong> {viewedProfile.medical_conditions.length ? viewedProfile.medical_conditions.join(', ') : 'None'}</p>
+                                        <p><strong>Medications:</strong> {viewedProfile.current_medications.length ? viewedProfile.current_medications.join(', ') : 'None'}</p>
+                                        <p><strong>Allergies:</strong> {viewedProfile.allergies.length ? viewedProfile.allergies.join(', ') : 'None'}</p>
+                                        <p><strong>Family History:</strong> {viewedProfile.family_history.length ? viewedProfile.family_history.join(', ') : 'None'}</p>
+                                        <p><strong>Created At:</strong> {viewedProfile.created_at}</p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        <div className="card">
+                            <h2>🔍 Medical Query</h2>
+                            <form onSubmit={handleQuery}>
+                                <div className="form-group">
+                                    <label>Your Health Question</label>
+                                    <textarea placeholder="e.g., I have hypertension and take Lisinopril. What lifestyle changes can help?"
+                                        value={queryForm.query} onChange={(e) => setQueryForm({ ...queryForm, query: e.target.value })} />
+                                    <div className="query-tools">
+                                        <button type="button" className={`tool-button ${isListening ? 'tool-button-active' : ''}`}
+                                            onClick={handleVoiceInput} disabled={!SpeechRecognitionAPI}
+                                            title={SpeechRecognitionAPI ? 'Speak your question' : 'Voice input not supported in this browser'}>
+                                            {isListening ? '🔴 Listening...' : '🎤 Speak'}
+                                        </button>
+                                        <button type="button" className="tool-button" onClick={handleInterpretQuery}
+                                            disabled={!queryForm.query.trim() || interpreting}
+                                            title="Clean up a rambling or unclear question into a clear one">
+                                            {interpreting ? 'Clarifying...' : '✨ Help Me Phrase This'}
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="form-group">
+                                    <label>Answer Language</label>
+                                    <select value={queryForm.language} onChange={(e) => setQueryForm({ ...queryForm, language: e.target.value })}>
+                                        <option>English</option>
+                                        <option>Spanish</option>
+                                        <option>Chinese (Simplified)</option>
+                                        <option>Vietnamese</option>
+                                        <option>Tagalog</option>
+                                        <option>Korean</option>
+                                        <option>Arabic</option>
+                                        <option>Russian</option>
+                                        <option>French</option>
+                                        <option>Haitian Creole</option>
+                                        <option>Portuguese</option>
+                                        <option>Hindi</option>
+                                    </select>
+                                </div>
+                                <div className="checkbox-group">
+                                    <input type="checkbox" id="personalize" checked={queryForm.include_personalization}
+                                        onChange={(e) => setQueryForm({ ...queryForm, include_personalization: e.target.checked })} />
+                                    <label htmlFor="personalize">Include personalized insights based on my profile</label>
+                                </div>
+                                <button type="submit" className="button" disabled={loading || !queryForm.query.trim()}>
+                                    {loading ? <><span className="spinner"></span> Searching...</> : '🔎 Search Medical Literature'}
+                                </button>
+                            </form>
+                            {queryResponse && queryResponse.is_emergency && (
+                                <div className="emergency-box">
+                                    <div className="emergency-title">
+                                        🚨 Possible Medical Emergency
+                                        {speechSynthesisSupported && (
+                                            <button type="button" className="speak-button" onClick={() => handleSpeakText(queryResponse.answer)}>
+                                                {isSpeaking ? '⏹ Stop' : '🔊 Listen'}
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div className="response-content" dangerouslySetInnerHTML={renderFormattedAnswer(queryResponse.answer)} />
+                                </div>
+                            )}
+                            {queryResponse && !queryResponse.is_emergency && (
+                                <div className="query-results">
+                                    <div className="response-box">
+                                        <div className="response-title">
+                                            Evidence-Based Answer
+                                            {speechSynthesisSupported && (
+                                                <button type="button" className="speak-button" onClick={() => handleSpeakText(queryResponse.answer)}>
+                                                    {isSpeaking ? '⏹ Stop' : '🔊 Listen'}
+                                                </button>
+                                            )}
+                                        </div>
+                                        <div className="response-content" dangerouslySetInnerHTML={renderFormattedAnswer(queryResponse.answer)} />
+                                    </div>
+                                    {queryResponse.personalized_insights && (
+                                        <div className="insight-box">
+                                            <div className="insight-title">💡 Personalized for Your Profile</div>
+                                            <div className="response-content" dangerouslySetInnerHTML={renderFormattedAnswer(queryResponse.personalized_insights)} />
+                                        </div>
+                                    )}
+                                    <div className="response-box">
+                                        <div className="response-title">Retrieved Medical Literature</div>
+                                        {queryResponse.retrieved_papers.map((paper, idx) => (
+                                            <div className="paper-item" key={idx}>
+                                                <div className="paper-title">{paper.title}</div>
+                                                <div className="paper-meta">
+                                                    <strong>Authors:</strong> {paper.authors.join(', ')}<br/>
+                                                    <strong>Journal:</strong> {paper.journal} ({paper.year})<br/>
+                                                    <strong>Source:</strong>{' '}
+                                                    <a className="doi-link" href={paper.url} target="_blank">PubMed PMID: {paper.pmid}</a>
+                                                    {paper.doi && <span> &nbsp;|&nbsp; DOI: <a className="doi-link" href={`https://doi.org/${paper.doi}`} target="_blank">{paper.doi}</a></span>}
+                                                </div>
+                                                <div className="paper-abstract"><strong>Abstract:</strong> {paper.abstract}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div className="stats">
+                                        <div className="stat-item">
+                                            <div className="stat-value">{(queryResponse.retrieval_score * 100).toFixed(1)}%</div>
+                                            <div className="stat-label">Retrieval Accuracy</div>
+                                        </div>
+                                        <div className="stat-item">
+                                            <div className="stat-value">{queryResponse.response_time.toFixed(2)}s</div>
+                                            <div className="stat-label">Response Time</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                            {stats && (
+                                <div className="stats">
+                                    <div className="stat-item">
+                                        <div className="stat-value" style={{fontSize: '1em'}}>{stats.data_source}</div>
+                                        <div className="stat-label">Data Source</div>
+                                    </div>
+                                    <div className="stat-item">
+                                        <div className="stat-value">{stats.total_users}</div>
+                                        <div className="stat-label">Profiles Created</div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                    <div className="card care-locator-card">
+                        <h2>🏥 Free & Low-Cost Care Near You</h2>
+                        <p className="field-hint" style={{marginBottom: '15px'}}>
+                            Federally Qualified Health Centers offer sliding-scale fees based on income, regardless of insurance status — a real option when a hospital isn't accessible or affordable.
+                        </p>
+                        <form onSubmit={handleFindCare} className="care-locator-form">
+                            <input type="text" placeholder="Enter your ZIP code" value={careZip}
+                                onChange={(e) => setCareZip(e.target.value)} maxLength="10" />
+                            <button type="submit" className="button" disabled={careLocatorLoading || !careZip.trim()}>
+                                {careLocatorLoading ? <><span className="spinner"></span> Searching...</> : 'Find Care'}
+                            </button>
+                        </form>
+                        {careLocatorResults && (
+                            <div className="care-results">
+                                {careLocatorResults.clinics.length > 0 ? (
+                                    careLocatorResults.clinics.map((c, idx) => (
+                                        <div className="clinic-item" key={idx}>
+                                            <div className="clinic-name">{c.name}</div>
+                                            <div className="clinic-detail">{c.address}</div>
+                                            {c.phone && <div className="clinic-detail">📞 {c.phone}</div>}
+                                        </div>
+                                    ))
+                                ) : (
+                                    <p className="field-hint">No health centers found for that ZIP code. Try the HRSA locator link below.</p>
+                                )}
+                            </div>
+                        )}
+                        <div className="hotline-grid">
+                            {(careLocatorResults ? careLocatorResults.hotlines : [
+                                {name: "988 Suicide & Crisis Lifeline", contact: "Call or text 988", for_: "Mental health crisis, suicidal thoughts"},
+                                {name: "Poison Control", contact: "1-800-222-1222", for_: "Suspected poisoning or overdose"},
+                                {name: "SAMHSA National Helpline", contact: "1-800-662-4357", for_: "Substance use and mental health referrals"},
+                                {name: "HRSA Find a Health Center", contact: "https://findahealthcenter.hrsa.gov", for_: "Search all free/sliding-scale clinics"}
+                            ]).map((h, idx) => (
+                                <div className="hotline-item" key={idx}>
+                                    <div className="hotline-name">{h.name}</div>
+                                    <div className="hotline-contact">{h.contact}</div>
+                                    <div className="field-hint">{h.for_}</div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+        function App() {
+            const [authData, setAuthData] = React.useState(() => {
+                const token = localStorage.getItem('access_token');
+                const email = localStorage.getItem('user_email');
+                return token ? { access_token: token, email } : null;
+            });
+
+            // Set synchronously during render, not in useEffect: React fires
+            // child effects before parent effects, so MedicalRAGApp's own
+            // mount-time data fetching could otherwise run before this
+            // header was attached, causing a spurious 401 right after a
+            // page refresh with an already-valid stored token.
+            if (authData) {
+                axios.defaults.headers.common['Authorization'] = `Bearer ${authData.access_token}`;
+            } else {
+                delete axios.defaults.headers.common['Authorization'];
+            }
+
+            React.useEffect(() => {
+                const interceptor = axios.interceptors.response.use(
+                    (response) => response,
+                    (error) => {
+                        if (error.response && error.response.status === 401) {
+                            localStorage.removeItem('access_token');
+                            localStorage.removeItem('user_email');
+                            setAuthData(null);
+                        }
+                        return Promise.reject(error);
+                    }
+                );
+                return () => axios.interceptors.response.eject(interceptor);
+            }, []);
+
+            const handleAuthenticated = (data) => {
+                localStorage.setItem('access_token', data.access_token);
+                localStorage.setItem('user_email', data.email);
+                setAuthData(data);
+            };
+
+            const handleLogout = () => {
+                localStorage.removeItem('access_token');
+                localStorage.removeItem('user_email');
+                setAuthData(null);
+            };
+
+            if (!authData) {
+                return <AuthScreen onAuthenticated={handleAuthenticated} />;
+            }
+            return <MedicalRAGApp key={authData.access_token} onLogout={handleLogout} userEmail={authData.email} />;
+        }
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>

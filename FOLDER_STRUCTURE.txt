@@ -1,0 +1,73 @@
+========================================================================
+                MEDICAL RAG SYSTEM - FOLDER STRUCTURE
+========================================================================
+
+medical-rag-system/
+|
+|-- START HERE:
+|   |-- 00_READ_ME_FIRST.txt     <- READ THIS FIRST!
+|   `-- START_HERE.md            <- Then read this
+|
+|-- SETUP SCRIPTS (Run one of these first):
+|   |-- setup.sh                 <- For macOS/Linux
+|   `-- setup.bat                <- For Windows
+|
+|-- DOCUMENTATION (in docs/ folder):
+|   |-- docs/QUICKSTART.md        <- 10-minute setup
+|   |-- docs/GETTING_STARTED.txt  <- Visual guide
+|   |-- docs/README.md            <- Full overview
+|   |-- docs/DEPLOYMENT_GUIDE.md  <- Deploy to cloud
+|   |-- docs/SETUP_CHECKLIST.md   <- Verification
+|   |-- docs/FILE_MANIFEST.md     <- File reference
+|   `-- docs/DELIVERY_SUMMARY.txt <- Package info
+|
+|-- BACKEND CODE (in backend/ folder):
+|   |-- backend/main.py           <- FastAPI server
+|   |-- backend/requirements.txt   <- Python packages
+|   `-- backend/venv/             <- Virtual environment (created by setup)
+|
+|-- FRONTEND CODE (in frontend/ folder):
+|   `-- frontend/index.html       <- React UI app
+|
+|-- CONFIGURATION FILES (root level):
+|   |-- .env.example              <- Config template
+|   |-- .env                       <- Your config (created by setup)
+|   |-- Dockerfile                <- Docker container (optional)
+|   |-- docker-compose.yml        <- Full stack (optional)
+|   `-- nginx.conf                <- Reverse proxy (optional)
+|
+`-- DATA FOLDERS (auto-created):
+    |-- data/                     <- Medical papers (optional)
+    `-- logs/                     <- Application logs
+
+========================================================================
+
+QUICK START (3 STEPS):
+
+Step 1: Run Setup Script
+  macOS/Linux:
+    cd ~/Desktop/medical-rag-system
+    bash setup.sh
+  Windows:
+    cd Desktop\medical-rag-system
+    setup.bat
+
+Step 2: Add Your API Key
+  1. Open .env file
+  2. Add: OPENAI_API_KEY=sk-your-actual-key
+  3. Save file
+
+Step 3: Run the System
+  Terminal 1 - Start Backend:
+    cd ~/Desktop/medical-rag-system
+    source backend/venv/bin/activate   (macOS/Linux)
+    backend\venv\Scripts\activate       (Windows)
+    python3 backend/main.py
+
+  Terminal 2 - Open Frontend:
+    Drag frontend/index.html into your browser
+    OR: python3 -m http.server 3000 -> open http://localhost:3000
+
+Done! Start asking health questions!
+
+========================================================================
