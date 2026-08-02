@@ -135,11 +135,14 @@
         .metric-value { font-size: 1.4em; font-weight: 700; color: #667eea; }
         .metric-label { font-size: 0.8em; color: #666; margin-top: 4px; }
         .care-locator-card { margin-top: 30px; }
-        .care-locator-form { display: flex; gap: 10px; margin-bottom: 15px; }
+        .care-locator-form { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
         .care-locator-form input {
-            flex: 1; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 1em; font-family: inherit;
+            flex: 1; min-width: 140px; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 1em; font-family: inherit;
         }
-        .care-locator-form input:focus { outline: none; border-color: #667eea; }
+        .care-locator-form select {
+            padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 1em; font-family: inherit;
+        }
+        .care-locator-form input:focus, .care-locator-form select:focus { outline: none; border-color: #667eea; }
         .care-results { margin-bottom: 20px; }
         .clinic-item { background: #f0f4ff; border-radius: 8px; padding: 12px 15px; margin-bottom: 10px; }
         .clinic-name { font-weight: 700; color: #333; margin-bottom: 4px; }
@@ -317,12 +320,13 @@
             const [queryResponse, setQueryResponse] = React.useState(null);
             const [stats, setStats] = React.useState(null);
             const [careZip, setCareZip] = React.useState('');
+            const [careInsurance, setCareInsurance] = React.useState('Not Specified');
             const [careLocatorResults, setCareLocatorResults] = React.useState(null);
             const [careLocatorLoading, setCareLocatorLoading] = React.useState(false);
 
             const blankProfileForm = () => ({
                 user_id: `user_${Date.now()}`, first_name: '', last_name: '', age: 45, gender: 'Not Specified',
-                height_cm: 170, weight_kg: 70,
+                height_cm: 170, weight_kg: 70, insurance: 'Not Specified',
                 medical_conditions: [], current_medications: [], allergies: [],
                 lifestyle_factors: 'Moderately Active', family_history: []
             });
@@ -365,6 +369,7 @@
                     const response = await axios.get(`${API_URL}/my-profile`);
                     setProfileForm(response.data);
                     setHasProfile(true);
+                    if (response.data.insurance) setCareInsurance(response.data.insurance);
                     runSafetyCheck();
                     runHealthMetrics();
                 } catch (error) {
@@ -453,6 +458,7 @@
 
                     await axios.put(`${API_URL}/my-profile`, payload);
                     setHasProfile(true);
+                    setCareInsurance(payload.insurance);
                     showMessage('Profile saved!', 'success');
 
                     fetchStats();
@@ -571,7 +577,7 @@
                 if (!careZip.trim()) return;
                 setCareLocatorLoading(true);
                 try {
-                    const response = await axios.get(`${API_URL}/care-locator`, { params: { zip_code: careZip.trim() } });
+                    const response = await axios.get(`${API_URL}/care-locator`, { params: { zip_code: careZip.trim(), insurance: careInsurance } });
                     setCareLocatorResults(response.data);
                 } catch (error) {
                     showMessage(`Error finding care: ${error.message}`, 'error');
@@ -644,6 +650,18 @@
                                         <option>Sedentary</option><option>Moderately Active</option><option>Very Active</option>
                                     </select>
                                 </div>
+                                <div className="form-group">
+                                    <label>Insurance</label>
+                                    <select value={profileForm.insurance} onChange={(e) => setProfileForm({ ...profileForm, insurance: e.target.value })}>
+                                        <option>Not Specified</option>
+                                        <option>Uninsured/Self-Pay</option>
+                                        <option>Medicaid</option>
+                                        <option>Medicare</option>
+                                        <option>Private Insurance</option>
+                                        <option>Other</option>
+                                    </select>
+                                    <div className="field-hint">Used to give accurate info in the Free & Low-Cost Care locator below</div>
+                                </div>
                                 <TagField
                                     label="Medical Conditions" placeholder="e.g., Hypertension"
                                     tags={profileForm.medical_conditions}
@@ -713,6 +731,7 @@
                                     <p><strong>Name:</strong> {(profileForm.first_name || profileForm.last_name) ? `${profileForm.first_name} ${profileForm.last_name}`.trim() : 'None'}</p>
                                     <p><strong>Age:</strong> {profileForm.age} years</p>
                                     <p><strong>Height/Weight:</strong> {profileForm.height_cm} cm / {profileForm.weight_kg} kg</p>
+                                    <p><strong>Insurance:</strong> {profileForm.insurance}</p>
                                     <p><strong>Conditions:</strong> {profileForm.medical_conditions.length ? profileForm.medical_conditions.join(', ') : 'None'}</p>
                                     <p><strong>Medications:</strong> {profileForm.current_medications.length ? profileForm.current_medications.join(', ') : 'None'}</p>
                                     <p><strong>Allergies:</strong> {profileForm.allergies.length ? profileForm.allergies.join(', ') : 'None'}</p>
@@ -787,6 +806,7 @@
                                         <p><strong>Age:</strong> {viewedProfile.age} years</p>
                                         <p><strong>Height/Weight:</strong> {viewedProfile.height_cm} cm / {viewedProfile.weight_kg} kg</p>
                                         <p><strong>Gender:</strong> {viewedProfile.gender}</p>
+                                        <p><strong>Insurance:</strong> {viewedProfile.insurance}</p>
                                         <p><strong>Lifestyle:</strong> {viewedProfile.lifestyle_factors}</p>
                                         <p><strong>Conditions:</strong> {viewedProfile.medical_conditions.length ? viewedProfile.medical_conditions.join(', ') : 'None'}</p>
                                         <p><strong>Medications:</strong> {viewedProfile.current_medications.length ? viewedProfile.current_medications.join(', ') : 'None'}</p>
@@ -925,12 +945,21 @@
                         <form onSubmit={handleFindCare} className="care-locator-form">
                             <input type="text" placeholder="Enter your ZIP code" value={careZip}
                                 onChange={(e) => setCareZip(e.target.value)} maxLength="10" />
+                            <select value={careInsurance} onChange={(e) => setCareInsurance(e.target.value)}>
+                                <option>Not Specified</option>
+                                <option>Uninsured/Self-Pay</option>
+                                <option>Medicaid</option>
+                                <option>Medicare</option>
+                                <option>Private Insurance</option>
+                                <option>Other</option>
+                            </select>
                             <button type="submit" className="button" disabled={careLocatorLoading || !careZip.trim()}>
                                 {careLocatorLoading ? <><span className="spinner"></span> Searching...</> : 'Find Care'}
                             </button>
                         </form>
                         {careLocatorResults && (
                             <div className="care-results">
+                                <p className="field-hint" style={{marginBottom: '12px'}}>{careLocatorResults.note}</p>
                                 {careLocatorResults.clinics.length > 0 ? (
                                     careLocatorResults.clinics.map((c, idx) => (
                                         <div className="clinic-item" key={idx}>

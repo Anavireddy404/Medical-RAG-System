@@ -56,6 +56,7 @@ class HealthProfile(BaseModel):
     gender: str
     height_cm: float
     weight_kg: float
+    insurance: str = "Not Specified"
     medical_conditions: List[str]
     current_medications: List[str]
     allergies: List[str]
@@ -730,13 +731,32 @@ def find_low_cost_clinics(zip_code: str, limit: int = 8) -> List[dict]:
         print(f"NPPES lookup error: {e}")
         return []
 
+def build_insurance_note(insurance: str) -> str:
+    """Honest messaging about insurance acceptance. FQHCs are legally
+    required to accept Medicaid, Medicare, and uninsured/self-pay patients,
+    so that's a real, verifiable claim. Private insurance networks are NOT
+    something any free public API exposes (each insurer keeps its own
+    provider directory), so we say that plainly instead of pretending to
+    filter by a specific private plan we have no data on."""
+    insurance = (insurance or "").strip().lower()
+    if insurance in ("medicaid",):
+        return "Federally Qualified Health Centers are required by law to accept Medicaid — every center below should accept it."
+    if insurance in ("medicare",):
+        return "Federally Qualified Health Centers are required by law to accept Medicare — every center below should accept it."
+    if insurance in ("uninsured/self-pay", "uninsured", "self-pay", "none", "not specified", ""):
+        return "Federally Qualified Health Centers offer sliding-scale fees based on income for uninsured/self-pay patients, regardless of immigration status."
+    if insurance in ("private insurance", "private", "commercial"):
+        return "These centers accept patients regardless of insurance status, but we can't verify whether they're in-network for your specific private plan — no free public directory covers that. Check your insurer's provider directory, or call ahead."
+    return "Federally Qualified Health Centers accept patients regardless of insurance status or ability to pay."
+
 @app.get("/api/care-locator")
-async def care_locator(zip_code: str):
+async def care_locator(zip_code: str, insurance: str = "Not Specified"):
     return {
         "zip_code": zip_code,
+        "insurance": insurance,
         "clinics": find_low_cost_clinics(zip_code),
         "hotlines": NATIONAL_HOTLINES,
-        "note": "Federally Qualified Health Centers offer sliding-scale fees based on income, regardless of insurance or immigration status."
+        "note": build_insurance_note(insurance)
     }
 
 # ==================== Query Interpretation ====================
