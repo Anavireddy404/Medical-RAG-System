@@ -175,7 +175,10 @@
 <body>
     <div id="root"></div>
     <script type="text/babel">
-        const API_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+        // file:// pages (opening index.html directly) have an EMPTY hostname,
+        // not "localhost" — must treat that as local too, or every request
+        // silently targets the (not-yet-deployed) production URL instead.
+        const API_URL = (window.location.protocol === 'file:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
             ? 'http://localhost:8000/api'
             : 'https://medical-rag-backend.onrender.com/api';
 
